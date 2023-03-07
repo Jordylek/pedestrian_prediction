@@ -1,5 +1,6 @@
 from .classic import GridWorldMDP
 from .expanded import GridWorldExpanded
 
-import hardmax
-import euclid
+import pp.mdp.hardmax as hardmax
+import pp.mdp.euclid as euclid
+

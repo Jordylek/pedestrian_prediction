@@ -43,15 +43,15 @@ class MDP(object):
         self.trans_prob_cache = {}
 
         # neighbor[s] is a set of tuples (a, s_prime)
-        self.neighbors = [[] for _ in xrange(S)]
+        self.neighbors = [[] for _ in range(S)]
         # reverse_neighbors is a set of tuples (a, s)
-        self.reverse_neighbors = [[] for _ in xrange(S)]
+        self.reverse_neighbors = [[] for _ in range(S)]
 
         self.transition_cached = np.empty([S, A], dtype=int)
         self.transition_cached_l = [0] * (S*A)
 
-        for s in xrange(S):
-            for a in xrange(A):
+        for s in range(S):
+            for a in range(A):
                 s_prime, illegal = transition_helper(s, a, alert_illegal=True)
                 self.transition_cached[s, a] = s_prime
                 self.transition_cached_l[a + s*A] = s_prime

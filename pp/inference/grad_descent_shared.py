@@ -1,5 +1,5 @@
 from __future__ import division
-
+import numpy as np
 def _make_harmonic(k, s=2, base=0.2):
     def harmonic(i):
         return max(k * 1/(s*i+1), base)
@@ -14,7 +14,7 @@ def simple_search(g, traj, goal, compute_score,
     lo, hi = min_beta, max_beta
     mid = guess or (hi + lo)/2
 
-    for i in xrange(max_iters):
+    for i in range(max_iters):
         assert lo <= mid <= hi
         diff = min(hi - mid, mid - lo)
         mid_minus = mid - delta
@@ -25,8 +25,8 @@ def simple_search(g, traj, goal, compute_score,
 
         if verbose:
             s_mid = compute_score(g, traj, goal, mid)
-            print "i={}\t mid={}\tscore={}\tgrad={}".format(
-                    i, mid, s_mid, (s_plus-s_minus)*2/delta)
+            print("i={}\t mid={}\tscore={}\tgrad={}".format(
+                    i, mid, s_mid, (s_plus-s_minus)*2/delta))
 
         if i >= min_iters and hi - lo < beta_threshold:
             break
@@ -41,7 +41,7 @@ def simple_search(g, traj, goal, compute_score,
         mid = (lo + hi)/2
 
     if verbose:
-        print "final answer: beta=", mid
+        print("final answer: beta=", mid)
     return mid
 
 def binary_search(g, traj, goal, compute_grad,
@@ -57,11 +57,11 @@ def binary_search(g, traj, goal, compute_grad,
     if len(traj) == 0:
         return guess
 
-    for i in xrange(max_iters):
+    for i in range(max_iters):
         assert lo <= mid <= hi
         grad = compute_grad(g, traj, goal, mid)
         if verbose:
-            print u"i={}\t mid={}\t grad={}".format(i, mid, grad)
+            print(u"i={}\t mid={}\t grad={}".format(i, mid, grad))
 
         if i >= min_iters and abs(grad) < grad_threshold:
             break
@@ -76,7 +76,7 @@ def binary_search(g, traj, goal, compute_grad,
         mid = (lo + hi)/2
 
     if verbose:
-        print u"final answer: beta=", mid
+        print(u"final answer: beta=", mid)
     return mid
 
 def gradient_ascent(g, traj, goal, compute_score, compute_grad,
@@ -94,7 +94,7 @@ def gradient_ascent(g, traj, goal, compute_score, compute_grad,
 
     history = []
     curr = guess
-    for i in xrange(max_iters):
+    for i in range(max_iters):
         grad = compute_grad(g, traj, goal, curr)
         diff = alpha(i) * grad
 
@@ -111,8 +111,8 @@ def gradient_ascent(g, traj, goal, compute_score, compute_grad,
 
         if verbose:
             history.append((curr, compute_score(g, traj, goal, curr)))
-            print u"{}: beta={}\tscore={}\tgrad={}\tlearning_rate={}\tdiff={}".format(
-                i, curr, history[-1][1], grad, alpha(i), diff)
+            print(u"{}: beta={}\tscore={}\tgrad={}\tlearning_rate={}\tdiff={}".format(
+                i, curr, history[-1][1], grad, alpha(i), diff))
 
         if i >= min_iters and abs(diff) < threshold:
             break

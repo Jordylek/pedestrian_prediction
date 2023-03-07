@@ -2,7 +2,7 @@ from __future__ import division
 
 from enum import IntEnum
 import numpy as np
-from hardmax import forwards_value_iter as _value_iter
+from .hardmax import forwards_value_iter as _value_iter
 from .mdp import MDP
 
 class Actions(IntEnum):

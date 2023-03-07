@@ -1,8 +1,8 @@
 from __future__ import division
 
 import numpy as np
-import destination
-import state
+import pp.inference.hardmax.destination as destination
+import pp.inference.hardmax.state as state
 
 from ...parameters import val_default
 from ...util.args import unpack_opt_list

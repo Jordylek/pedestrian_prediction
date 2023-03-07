@@ -1,8 +1,8 @@
 from __future__ import division
 
 import numpy as np
-import destination
-import beta as bt
+import pp.inference.hardmax.destination as destination
+import pp.inference.hardmax.beta as bt
 
 from ...mdp import GridWorldExpanded
 

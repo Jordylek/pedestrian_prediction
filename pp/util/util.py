@@ -1,9 +1,9 @@
 import numpy as np
 
-from itertools import imap
+# from itertools import imap
 
 def sum_rewards(mdp, traj):
-    return sum(imap(lambda x: mdp.rewards[x[0], x[1]], traj))
+    return sum(map(lambda x: mdp.rewards[x[0], x[1]], traj))
 
 def normalize(vec):
     x = np.array(vec)
@@ -27,10 +27,10 @@ def display(mdp, traj, init_state, goal_state, traj_aux=[],
 
     failures = set(mdp.state_to_coor(s) for s in failures)
 
-    lines = [(['.'] * mdp.rows) for _ in xrange(mdp.cols)]
-    for c in xrange(mdp.cols):
+    lines = [(['.'] * mdp.rows) for _ in range(mdp.cols)]
+    for c in range(mdp.cols):
         line = lines[c]
-        for r in xrange(mdp.rows):
+        for r in range(mdp.rows):
             if (r, c) in failures:
                 line[r] = 'X'
             elif (r, c) in visited:
@@ -44,7 +44,7 @@ def display(mdp, traj, init_state, goal_state, traj_aux=[],
                 line[goal_state[0]] = 'G' if goal_state in visited else 'g'
 
     for l in reversed(lines):
-        print " ".join(l)
+        print(" ".join(l))
 
 def display_plan(mdp, plan, init_state, goal_state, heat_nums):
     init_state = mdp.state_to_coor(init_state)
@@ -57,7 +57,7 @@ def display_plan(mdp, plan, init_state, goal_state, heat_nums):
         visited.add(init_state)
 
     # TODO: Try unrolling an np string array
-    lines = [(['.'] * mdp.rows) for _ in xrange(mdp.cols)]
+    lines = [(['.'] * mdp.rows) for _ in range(mdp.cols)]
     for (s, a), heat in zip(plan, heat_nums):
         assert 0 <= heat <= 9, heat
         r, c = mdp.state_to_coor(s)
@@ -70,7 +70,7 @@ def display_plan(mdp, plan, init_state, goal_state, heat_nums):
     lines[goal_state[0]][goal_state[1]] = marker
 
     for l in reversed(lines):
-        print " ".join(l)
+        print(" ".join(l))
 
 def build_traj_from_actions(g, init_state, actions):
     s = init_state
@@ -83,20 +83,20 @@ def build_traj_from_actions(g, init_state, actions):
 def traj_stats(g, start, goal, traj, beta=1, dest_set=None,
         T=0, c_0=-20, sigma_0=5, sigma_1=5, heat_maps=(), zmin=None, zmax=None):
 
-    print "Task: Start={}, Goal={}".format(g.state_to_coor(start),
-            g.state_to_coor(goal))
-    print "Assumed beta={}".format(beta)
-    print "Possible goals:"
+    print("Task: Start={}, Goal={}".format(g.state_to_coor(start),
+            g.state_to_coor(goal)))
+    print("Assumed beta={}".format(beta))
+    print("Possible goals:")
     if dest_set == None:
         dest_set = {goal}
 
     dest_set=set(d if type(d) is int else g.coor_to_state(*d) for d in dest_set)
-    print dest_set
+    print(dest_set)
 
-    print "Raw trajectory:"
-    print [(g.state_to_coor(s), g.Actions(a)) for s, a in traj]
+    print("Raw trajectory:")
+    print([(g.state_to_coor(s), g.Actions(a)) for s, a in traj])
     display(g, traj, start, goal, overlay=True)
 
     P = infer_destination(g, traj, beta=beta, dest_set=dest_set)
-    print "goal probabilities (softmax):"
-    print P.reshape(g.rows, g.cols)
+    print("goal probabilities (softmax):")
+    print(P.reshape(g.rows, g.cols))

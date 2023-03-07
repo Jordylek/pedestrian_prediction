@@ -1,1 +1,1 @@
-import hardmax
+import pp.inference.hardmax

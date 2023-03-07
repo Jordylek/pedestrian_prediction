@@ -2,7 +2,7 @@ from __future__ import division
 
 import numpy as np
 from .classic import GridWorldMDP, transition_helper, MDP2D
-import gridless
+import pp.mdp.gridless as gridless
 from enum import IntEnum
 
 OldAct = GridWorldMDP.Actions

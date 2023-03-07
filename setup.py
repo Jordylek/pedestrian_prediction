@@ -1,9 +1,9 @@
 from setuptools import setup
 import sys
 
-if sys.version_info.major != 2:
-    print("This package is only compatible with Python 2.")
-    exit(1)
+# if sys.version_info.major != 2:
+#     print("This package is only compatible with Python 2.")
+#     exit(1)
 
 extras = {
     'plots': ['plotly']
