@@ -16,7 +16,7 @@ def _traj_beta_inf_loop(on_loop, g, traj, traj_lens, goal,
         inf_mod=inf_default, guess=1,
         min_beta=0.01, max_beta=100, verbose=True):
 
-    for i in xrange(len(traj) + 1):
+    for i in range(len(traj) + 1):
         trajs = []
         beta_hats = []
         for traj_len in traj_lens:
@@ -32,7 +32,7 @@ def _traj_beta_inf_loop(on_loop, g, traj, traj_lens, goal,
                         guess=beta_hat, verbose=verbose, min_beta=min_beta,
                         max_beta=max_beta)
                 if verbose:
-                    print "{}: beta_hat={}".format(i+1, beta_hat)
+                    print("{}: beta_hat={}".format(i+1, beta_hat))
             trajs.append(tr)
             beta_hats.append(beta_hat)
         on_loop(trajs, np.round(beta_hats, 3), i)
@@ -83,7 +83,7 @@ def _traj_beta_inf_loop_multi(on_loop, g, traj, dest_list, inf_mod=inf_default,
         verbose=True):
     traj_len = traj_len or np.inf
 
-    for i in xrange(len(traj) + 1):
+    for i in range(len(traj) + 1):
         if i == 0:
             start = traj[0][0]
             tr = [(start, Actions.ABSORB)]
@@ -102,8 +102,8 @@ def _traj_beta_inf_loop_multi(on_loop, g, traj, dest_list, inf_mod=inf_default,
             D_list.append(D)
             beta_guesses[j] = np.copy(betas)
             if verbose:
-                print "dest_probs={}".format(dest_probs)
-                print "betas={}".format(betas)
+                print("dest_probs={}".format(dest_probs))
+                print("betas={}".format(betas))
 
         np.around(dest_probs, 3, out=dest_probs)
         np.around(betas, 3, out=betas)

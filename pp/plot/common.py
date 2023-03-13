@@ -228,7 +228,7 @@ def _traj_starter(N, init_state, mode):
 
 def _traj_beta_inf_loop(on_loop, g, traj, goal, inf_mod=inf_default, guess=1,
         min_beta=0.01, max_beta=100, verbose=True):
-    for i in xrange(len(traj) + 1):
+    for i in range(len(traj) + 1):
         if i == 0:
             start = traj[0][0]
             tr = [(start, Actions.ABSORB)]
@@ -238,7 +238,7 @@ def _traj_beta_inf_loop(on_loop, g, traj, goal, inf_mod=inf_default, guess=1,
             beta_hat = inf_mod.beta.binary_search(g, tr, goal, guess=beta_hat,
                     verbose=verbose, min_beta=min_beta, max_beta=max_beta)
             if verbose:
-                print "{}: beta_hat={}".format(i+1, beta_hat)
+                print("{}: beta_hat={}".format(i+1, beta_hat))
         on_loop(tr, round(beta_hat, 3), i)
 
 

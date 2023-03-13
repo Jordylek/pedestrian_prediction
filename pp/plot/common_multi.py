@@ -86,7 +86,7 @@ def _traj_beta_inf_loop(on_loop, g, traj, dest_list, inf_mod=inf_default,
         traj_len=None, verbose=True):
     traj_len = traj_len or np.inf
 
-    for i in xrange(len(traj) + 1):
+    for i in range(len(traj) + 1):
         if i == 0:
             start = traj[0][0]
             tr = [(start, Actions.ABSORB)]
@@ -105,8 +105,8 @@ def _traj_beta_inf_loop(on_loop, g, traj, dest_list, inf_mod=inf_default,
                     verbose=verbose, verbose_return=True)
             beta_guesses = np.copy(betas)
             if verbose:
-                print "dest_probs={}".format(dest_probs)
-                print "betas={}".format(betas)
+                print("dest_probs={}".format(dest_probs))
+                print("betas={}".format(betas))
 
         np.around(dest_probs, 3, out=dest_probs)
         np.around(betas, 3, out=betas)

@@ -73,8 +73,8 @@ def sample_action(mdp, state, goal, beta=1, cached_probs=None,
     return choice
 
 def _main():
-    from util import display
-    from mdp.mdp import GridWorldMDP
+    from pp.util import display
+    from pp.mdp.classic import GridWorldMDP
 
     init = 0
     goal = 35
@@ -83,9 +83,9 @@ def _main():
     g = GridWorldMDP(6, 6, default_reward=default_reward, euclidean_rewards=True)
 
     traj = simulate(g, 0, goal, beta=beta)
-    print "Testing hardmax.simulate:"
-    print "  * default_reward={}, beta={}".format(default_reward, beta)
-    print "  * traj: {}".format([(g.state_to_coor(s), g.Actions(a)) for s, a in traj])
+    print("Testing hardmax.simulate:")
+    print("  * default_reward={}, beta={}".format(default_reward, beta))
+    print("  * traj: {}".format([(g.state_to_coor(s), g.Actions(a)) for s, a in traj]))
     display(g, traj, init, goal, overlay=True)
 
 if __name__ == '__main__':

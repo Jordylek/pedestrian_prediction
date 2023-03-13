@@ -78,11 +78,11 @@ class CarMDP(MDP):
         self.allow_wait = allow_wait
         S = X * Y * T
 
-        print "------ Car MDP ------"
-        print "num X : ", self.X
-        print "num Y : ", self.Y
-        print "num theta : ", self.T
-        print "---------------------"
+        print("------ Car MDP ------")
+        print("num X : ", self.X)
+        print("num Y : ", self.Y)
+        print("num theta : ", self.T)
+        print("---------------------")
 
         # Compute maximum angular velocity based on the max angle change
         # and timestep.

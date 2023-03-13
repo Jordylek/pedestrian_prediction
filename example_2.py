@@ -3,9 +3,11 @@ from pp.mdp.expanded import GridWorldExpanded
 from pp.inference import hardmax as inf
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import copy
 
-def plot_state_trajs(mdp, state_traj1, state_traj2=None, pred_states=None, dest_list=None, lamb=0.01):
+def plot_state_trajs(mdp, state_traj1, state_traj2=None, pred_states=None, dest_list=None, lamb=0.01,
+                     plot_intervals=1):
     """Plots the traversed state trajectories.
     Args:
         mdp (MDP object):
@@ -39,56 +41,115 @@ def plot_state_trajs(mdp, state_traj1, state_traj2=None, pred_states=None, dest_
             likely_idxs = np.where(pred_grid >= lamb) # remove all the predictions that are too unlikely
 
             # setup a list of all the likely enough states per future timestep
-            likely_coor = None
+            # likely_coor = None
+            # for state in likely_idxs[0]:
+            #     s_coor = mdp.state_to_coor(state)
+            #     if likely_coor is None:
+            #         likely_coor = np.array([s_coor])
+            #     else:
+            #         likely_coor = np.append(likely_coor, [s_coor], axis=0)
+            likely_coor = []
             for state in likely_idxs[0]:
                 s_coor = mdp.state_to_coor(state)
-                if likely_coor is None:
-                    likely_coor = np.array([s_coor])
-                else:
-                    likely_coor = np.append(likely_coor, [s_coor], axis=0)
+                likely_coor.append((*s_coor, pred_grid[state]))
 
             # import pdb; pdb.set_trace()
 
             if len(likely_coor) > 0:
-                all_likely_coor.append(likely_coor)
+                all_likely_coor.append(np.array(likely_coor))
 
     # plotting!
-    plt.figure(figsize=(int(mdp.rows*0.3),int(mdp.cols*0.3)))
+    # Create a figure with subplots, one per timestep in num_tsteps
+    # I have num_tsteps, create a figure with num_tsteps subplots. I want it to be a square.
 
+
+    # fig, axs = plt.subplots(nrow)
+    # plt.figure(figsize=(int(mdp.rows*0.3),int(mdp.cols*0.3)))
     # plot the predictions
-    if pred_states is not None:
-        num_tsteps = pred_states.shape[0]
-        colors = np.linspace(0, 1, pred_states.shape[0])
-        for tidx in range(pred_states.shape[0]-1, 0, -1):
-            coor = all_likely_coor[tidx]
-            plt.scatter(coor[:, 0], coor[:, 1], s=20, marker='o', c=[1-colors[tidx], 0, colors[tidx]])
+    num_tsteps = coor_traj1.shape[0]
+    n_plots = num_tsteps // plot_intervals
+    nrows = int(np.sqrt(n_plots))
+    ncols = int(np.ceil(n_plots / nrows))
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3 * nrows, 3 * ncols))
 
-    # plot first agent's full path
-    plt.plot(coor_traj1[:,0], coor_traj1[:,1], '-g')
-    plt.scatter(coor_traj1[0, 0], coor_traj1[0, 1], s=60, marker='o', c='g')  # plot start
-    plt.scatter(coor_traj1[-1, 0], coor_traj1[-1, 1], s=60, marker='x', c='g') # plot goal
+    # colors = np.linspace(0, 1, num_tsteps)
+    # for tidx in range(num_tsteps-1, 0, -1):
+    for i in range(nrows):
+        for j in range(ncols):
+            # tidx = i * ncols + j
+            tidx = (i * ncols + j) * plot_intervals
+            ax = axs[i, j]
+            # plot the predictions
+            if pred_states is not None:
+                tidx0 = min(tidx, len(all_likely_coor) - 1)
+                coor = all_likely_coor[tidx0]
+                divnorm = mpl.colors.TwoSlopeNorm(vmin=lamb, vcenter=5*lamb, vmax=1.)
+                g = ax.scatter(coor[:, 0], coor[:, 1], s=20, marker='o', c= coor[:, 2], cmap='YlGn', norm=divnorm)  # [1 - colors[tidx0], 0, colors[tidx0]])
+                ax.set_xlim([0, mdp.rows])
+                ax.set_ylim([0, mdp.cols])
+            tidx1 = min(tidx, coor_traj1.shape[0] - 1)
+            # plot first agent's full path until timestep tidx1
 
+            ax.plot(coor_traj1[:tidx1,0], coor_traj1[:tidx1,1], '-g', marker='*')
+            ax.scatter(coor_traj1[0, 0], coor_traj1[0, 1], s=60, marker='o', c='g')  # plot start
+            ax.scatter(coor_traj1[-1, 0], coor_traj1[-1, 1], s=60, marker='x', c='g') # plot goal
 
-    # plot candidate goals for second agent, if we have them
-    if dest_list is not None:
-        for dest in dest_list:
-            # convert from states to coordinates
-            coor = mdp.state_to_coor(dest)
-            plt.scatter(coor[0], coor[1], s=80, marker='x', c='k')  # plot goal
+            if dest_list is not None:
+                for dest in dest_list:
+                    # convert from states to coordinates
+                    coor = mdp.state_to_coor(dest)
+                    ax.scatter(coor[0], coor[1], s=80, marker='x', c='k')
 
-    # plot second agent's full path, if we have it
-    if state_traj2 is not None:
-        plt.plot(coor_traj2[:, 0], coor_traj2[:, 1], '--r')
-        plt.scatter(coor_traj2[0, 0], coor_traj2[0, 1], s=60, marker='o', c='r')  # plot start
-        plt.scatter(coor_traj2[-1, 0], coor_traj2[-1, 1], s=60, marker='x', c='r')  # plot goal
+            tidx2 = min(tidx, coor_traj2.shape[0] - 1)
+            # plot second agent's full path until timestep tidx
+            if state_traj2 is not None:
+                ax.plot(coor_traj2[:tidx2,0], coor_traj2[:tidx2,1], '-r', marker='*')
+                ax.scatter(coor_traj2[0, 0], coor_traj2[0, 1], s=60, marker='o', c='r')  # plot start
+                ax.scatter(coor_traj2[-1, 0], coor_traj2[-1, 1], s=60, marker='x', c='r') # plot goal
+            ax.set_title('T={}'.format(tidx))
+    # add a colorbar to the figure at the bottom
+    fig.subplots_adjust(bottom=0.2)
+    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.05])
+    fig.colorbar(g, cax=cbar_ax, orientation='horizontal')
 
-
-    # setup bounds of env
-    plt.xlim([0, mdp.rows])
-    plt.ylim([0, mdp.cols])
     plt.show()
+            #
 
-def simulate(mdp, start_state, goal_state, path_length=None):
+            # coor = all_likely_coor[tidx]
+            # ax = axs[i, j]
+            # ax.scatter(coor[:, 0], coor[:, 1], s=20, marker='o', c=[1 - colors[tidx], 0, colors[tidx]])
+            # ax.set_xlim([0, mdp.rows])
+            # ax.set_ylim([0, mdp.cols])
+    # if pred_states is not None:
+
+
+
+    # # plot first agent's full path
+    # plt.plot(coor_traj1[:,0], coor_traj1[:,1], '-g', marker='*')
+    # plt.scatter(coor_traj1[0, 0], coor_traj1[0, 1], s=60, marker='o', c='g')  # plot start
+    # plt.scatter(coor_traj1[-1, 0], coor_traj1[-1, 1], s=60, marker='x', c='g') # plot goal
+    #
+    #
+    # # plot candidate goals for second agent, if we have them
+    # if dest_list is not None:
+    #     for dest in dest_list:
+    #         # convert from states to coordinates
+    #         coor = mdp.state_to_coor(dest)
+    #         plt.scatter(coor[0], coor[1], s=80, marker='x', c='k')  # plot goal
+    #
+    # # plot second agent's full path, if we have it
+    # if state_traj2 is not None:
+    #     plt.plot(coor_traj2[:, 0], coor_traj2[:, 1], '--r')
+    #     plt.scatter(coor_traj2[0, 0], coor_traj2[0, 1], s=60, marker='o', c='r')  # plot start
+    #     plt.scatter(coor_traj2[-1, 0], coor_traj2[-1, 1], s=60, marker='x', c='r')  # plot goal
+    #
+    #
+    # # setup bounds of env
+    # plt.xlim([0, mdp.rows])
+    # plt.ylim([0, mdp.cols])
+
+
+def simulate(mdp, start_state, goal_state, path_length=None, random_traj=False, beta=1.0):
     """Forward simulates an optimal agent moving from start to goal.
     Args:
         mdp (MDP object): class defining the mdp model
@@ -107,7 +168,13 @@ def simulate(mdp, start_state, goal_state, path_length=None):
 
     # Get the action that maximizes the Q-value at each state.
     #   opt_action_r of shape [sim_height * sim_width, 1]
-    opt_actions = np.argmax(Q_value, axis=1)
+    if random_traj:
+        policy = np.exp(Q_value/beta)/np.sum(np.exp(Q_value/beta), axis=1, keepdims=True)
+        # opt_actions = np.random.choice(mdp.Actions.NUM_ACTIONS, size=mdp.num_states, p=policy)
+    else:
+        policy = np.zeros_like(Q_value)
+        policy[np.arange(Q_value.shape[0]), np.argmax(Q_value, axis=1)] = 1
+    # opt_actions = np.argmax(Q_value, axis=1)
 
     if path_length == None:
         path_length = np.inf
@@ -115,7 +182,8 @@ def simulate(mdp, start_state, goal_state, path_length=None):
     traj = []
     s = start_state
     while len(traj) < path_length:
-        a = opt_actions[s]
+        a = np.random.choice(policy[s].shape[0], p=policy[s])
+        # a = opt_actions[s]
         assert a is not None
         traj.append([s, a])
         if a == mdp.Actions.ABSORB:
@@ -136,6 +204,9 @@ def predict_human(mdp, state_traj_h, dest_list, fwd_tsteps, betas):
 
     # OPTION 1: The line below feeds in the entire human traj history so far
     # 			and does a single bulk Bayesian inference step.
+
+
+    # Here, Traj is only use for the INITIAL step and for the trajectory length.
     straj = copy.deepcopy(state_traj_h)
     straj.reverse()
     occupancy_grids, beta_occu, dest_beta_prob = inf.state.infer_joint(mdp,
@@ -189,16 +260,26 @@ if __name__ == '__main__':
 
     # Simulate human: returns optimal [(s,a)_0, ..., (s,a)_T] trajectory from start to true human goal
     print("Simulating the human's optimal trajectory...")
-    state_traj_h = simulate(mdp, start_state_h, true_goal_state_h)
+    state_traj_h = simulate(mdp, start_state_h, true_goal_state_h, random_traj=True, beta=0.5)  # beta=0.1 is the human's rationality. Smaller is better
 
     # Predict the human
-    fwd_tsteps = 10
-    betas = [0.1]  # assume the human is rational when predicting them. beta here is 1/beta in the paper.
+    fwd_tsteps = len(state_traj_h)
+    betas = [0.1, 1, 10]  # assume the human is rational when predicting them. beta here is 1/beta in the paper.
     print("Predicting human...")
     pred_state_traj_h = predict_human(mdp, state_traj_h, goal_state_h, fwd_tsteps, betas)
-    import matplotlib as mpl
-    mpl.use('TkAgg')
+    # import matplotlib as mpl
+    # mpl.use('TkAgg')
+    mpl.use('Qt5Agg')
     # Plot the optimal path
     lamb = 0.01
     print("Plotting...")
     plot_state_trajs(mdp, state_traj_r, state_traj_h, pred_state_traj_h, goal_state_h, lamb=lamb)
+    # TODO: Show states in a sequence of timestamps, not just a single timestamp. DONE
+    # TODO:
+    #  Change the reward to include non-collision with the human (or where the human is predicted to be).
+    #  Try a full planning offline at t=0 (probably not feasible)
+    #  Try to update online with the human's actual trajectory
+    #  Toy case: robot wants to go from (0,0) to (0,1) and human stands on (0, 0.5). Check if robot goes around
+    #  Example of reward function R = -dist(next_pos, goal) + dist(next_pos, human) * (if ||next_pos - human|| < r)
+    #    and r is a hyperparameter.
+
