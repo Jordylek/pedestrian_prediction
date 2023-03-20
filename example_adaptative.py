@@ -1,15 +1,17 @@
 from pp.mdp import GridWorldMDP
 from pp.mdp.expanded import GridWorldExpanded
-from pp.mdp.adaptive_expanded import GridWorldExpandedAdaptive
+from pp.mdp.adaptive_expanded import GridWorldExpandedAdaptive, compute_confidence_set
 from pp.inference import hardmax as inf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import copy
+from pp.learner.base_learner import BaseLearner
+from pp.learner.aci_learner import ACILearner
+from pp.learner.decision_learner import DecisionLearner
 
-
-def plot_state_trajs(mdp, state_trajs, pred_states=None, dest_list=None, lamb=0.01, colors=None, radius=None,
-					 plot_intervals=1, labels=None, humax_idx=0):
+def plot_state_trajs(mdp, state_trajs, pred_states=None, dest_list=None, lam=0.01, colors=None, radius=None,
+					 plot_intervals=1, labels=None, humax_idx=0, avoid_over=None):
 	# preprocessing of data
 	coor_trajs = []
 	for state_traj in state_trajs:
@@ -25,17 +27,25 @@ def plot_state_trajs(mdp, state_trajs, pred_states=None, dest_list=None, lamb=0.
 	if labels is None:
 		labels = [f'Traj {i}' for i in range(len(coor_trajs))]
 
-	if pred_states is not None:
-		all_likely_coor = []
-		for tidx in range(pred_states.shape[0]):
-			pred_grid = pred_states[tidx]
-			likely_idxs = np.where(pred_grid >= lamb)  # remove all the predictions that are too unlikely
-			likely_coor = []
-			for state in likely_idxs[0]:
-				s_coor = mdp.state_to_coor(state)
-				likely_coor.append((*s_coor, pred_grid[state]))
-			if len(likely_coor) > 0:
-				all_likely_coor.append(np.array(likely_coor))
+	H = len(state_trajs[0])
+	# avoid_over is the the max avoid_over if it is an iterable, and H if it is None
+	if avoid_over is None:
+		avoid_over = H
+	elif isinstance(avoid_over, (list, tuple)):
+		avoid_over = max(avoid_over)
+
+	assert isinstance(avoid_over, int), f'avoid_over must be an int or None, not {type(avoid_over)}'
+	# if pred_states is not None:
+	# 	all_likely_coor = []
+	# 	for tidx in range(pred_states.shape[0]):
+	# 		pred_grid = pred_states[tidx]
+	# 		likely_idxs = np.where(pred_grid >= lam)  # remove all the predictions that are too unlikely
+	# 		likely_coor = []
+	# 		for state in likely_idxs[0]:
+	# 			s_coor = mdp.state_to_coor(state)
+	# 			likely_coor.append((*s_coor, pred_grid[state]))
+	# 		if len(likely_coor) > 0:
+	# 			all_likely_coor.append(np.array(likely_coor))
 
 	num_tsteps = max([coor_traj.shape[0] for coor_traj in coor_trajs])
 	n_plots = num_tsteps // plot_intervals
@@ -56,14 +66,29 @@ def plot_state_trajs(mdp, state_trajs, pred_states=None, dest_list=None, lamb=0.
 			tidx = (i * ncols + j) * plot_intervals
 			ax = axs[i, j]
 			# plot the predictions
+			# if pred_states is not None:
+			# 	tidx0 = min(tidx, len(all_likely_coor) - 1)
+			# 	coor = all_likely_coor[tidx0]
+			# 	divnorm = mpl.colors.TwoSlopeNorm(vmin=lam, vcenter=5 * lam, vmax=1.)
+			# 	g = ax.scatter(coor[:, 0], coor[:, 1], s=state_pred_size, marker='o', c=coor[:, 2], cmap='YlGn',
+			# 				   norm=divnorm)
+			# 	ax.set_xlim([0, mdp.rows])
+			# 	ax.set_ylim([0, mdp.cols])
 			if pred_states is not None:
-				tidx0 = min(tidx, len(all_likely_coor) - 1)
-				coor = all_likely_coor[tidx0]
-				divnorm = mpl.colors.TwoSlopeNorm(vmin=lamb, vcenter=5 * lamb, vmax=1.)
-				g = ax.scatter(coor[:, 0], coor[:, 1], s=state_pred_size, marker='o', c=coor[:, 2], cmap='YlGn',
-							   norm=divnorm)
-				ax.set_xlim([0, mdp.rows])
-				ax.set_ylim([0, mdp.cols])
+				pred_grid = pred_states[tidx]
+				# idxs = np.argsort(pred_grid)[::-1]
+				# cumulative_probs = np.cumsum(pred_grid[idxs])
+				# confidence_set = idxs[:np.argmax(cumulative_probs >= 1 - lam) + 1]
+				# confidence_coord = np.array([mdp.state_to_coor(state) for state in confidence_set])
+				# scale = pred_grid[confidence_set]
+				for t in range(len(pred_grid)):
+					if t >= avoid_over:
+						break
+					confidence_set = compute_confidence_set(pred_grid[t], p=lam)
+					confidence_coord = np.array([mdp.state_to_coor(state) for state in confidence_set])
+					color = [t/avoid_over, 0, 1 - t/avoid_over]
+					g = ax.scatter(confidence_coord[:, 0], confidence_coord[:, 1], s=state_pred_size * (1-t/avoid_over + 1e-3), marker='o',
+							   alpha=0.3, c=color)
 			if dest_list is not None:
 				for dest in dest_list:
 					# convert from states to coordinates
@@ -88,10 +113,10 @@ def plot_state_trajs(mdp, state_trajs, pred_states=None, dest_list=None, lamb=0.
 				# 	ax.legend()
 			ax.set_title('T={}'.format(tidx))
 	# add a colorbar to the figure at the bottom
-	ax.legend(bbox_to_anchor=(-0.03, -0.03), loc="upper left", ncol=3)
-	fig.subplots_adjust(bottom=0.2)
-	cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.05])
-	fig.colorbar(g, cax=cbar_ax, orientation='horizontal')
+	axs[-1, 0].legend(bbox_to_anchor=(-0.03, -0.03), loc="upper left", ncol=2)
+	# fig.subplots_adjust(bottom=0.2)
+	# cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.05])
+	# fig.colorbar(g, cax=cbar_ax, orientation='horizontal')
 	fig.show()
 	return fig
 
@@ -259,7 +284,9 @@ def simulate(mdp, start_state, goal_state, path_length=None, random_traj=False, 
 				break
 	return traj
 
-def adaptive_simulation(mdp, start_state, goal_state, path_length=None, random_traj=False, beta=1.0):
+
+def adaptive_simulation(mdp, start_state, goal_state, path_length=None, random_traj=False, beta=1.0, lam=0.5, gamma=0.9,
+						penalty_type='hard'):
 	"""Forward simulates an optimal agent moving from start to goal.
     Args:
         mdp (MDP object): class defining the mdp model
@@ -274,7 +301,7 @@ def adaptive_simulation(mdp, start_state, goal_state, path_length=None, random_t
 	# Get the robot's state-action value Q_r(s,a) for all states and actions, towards the specific goal goal_state
 	#   Q_value_r of shape [sim_height * sim_width, num_actions]
 	goal_stuck = True  # boolean if the agent is "stuck" at the goal once they get there
-	Q_value = mdp.q_values(goal_state, goal_stuck=goal_stuck)
+	Q_value = mdp.q_values(goal_state, goal_stuck=goal_stuck, lam=lam, penalty_type=penalty_type)
 
 	# Get the action that maximizes the Q-value at each state.
 	#   opt_action_r of shape [sim_height * sim_width, 1]
@@ -307,8 +334,53 @@ def adaptive_simulation(mdp, start_state, goal_state, path_length=None, random_t
 				break
 	return traj
 
+def predict_human(mdp, state_traj_h, dest_list, H, betas):
+	"""Predicts the human recursively.
+    Args:
+        state_traj_h (list): of state-action pairs that the human actually traverses.
 
-def predict_human(mdp, state_traj_h, dest_list, fwd_tsteps, betas):
+    Returns:
+        occupancy_grids [np.ndarray]: A (T+1 x S) array, where the `t`th entry is the
+            probability of state S in `t` timesteps from now.
+    """
+
+	# OPTION 1: The line below feeds in the entire human traj history so far
+	# 			and does a single bulk Bayesian inference step.
+
+	# Here, Traj is only use for the INITIAL step and for the trajectory length.
+	# straj = copy.deepcopy(state_traj_h)
+	# straj.reverse()
+	occupancy_grids = []
+	dest_beta_prob = None
+	# infer_joint(g, dests, betas, T, use_gridless=False, traj=[],
+	# 			init_state=None, priors=None, epsilon_dest=0.02, epsilon_beta=0.02,
+	# 			k=None, verbose_return=False):
+	for h in range(H):
+		# Starting from state_traj_h[h], predict until step H
+		occupancy_grid, _, dest_beta_prob = inf.state.infer_joint(mdp, dest_list,
+																  betas,
+																  T=H - h,
+																  use_gridless=False,
+																  traj=state_traj_h[:h + 1],
+																  verbose_return=True,
+																  priors=dest_beta_prob)
+		occupancy_grids.append(occupancy_grid)
+
+
+	# OPTION 2: The line below feeds in the last human (s,a) pair and previous posterior
+	# 			and does a recursive Bayesian update.
+	# occupancy_grids, beta_occu, dest_beta_prob = inf.state.infer_joint(mdp,
+	#                                                                      dest_list,
+	#                                                                      betas,
+	#                                                                      T=fwd_tsteps,
+	#                                                                      use_gridless=True,
+	#                                                                      priors=dest_beta_prob,
+	#                                                                      traj=straj[-2:],
+	#                                                                      verbose_return=True)
+
+	return occupancy_grids
+
+def predict_human_prev(mdp, state_traj_h, dest_list, fwd_tsteps, betas):
 	"""Predicts the human recursively.
     Args:
         state_traj_h (list): of state-action pairs that the human actually traverses.
@@ -367,7 +439,7 @@ if __name__ == '__main__':
 	true_goal_idx = 0
 	true_goal_coor_h = goal_coor_h[true_goal_idx]
 	true_goal_state_h = goal_state_h[true_goal_idx]
-	H = 30
+	H = 15
 
 	# Simulate robot: returns optimal [(s,a)_0, ..., (s,a)_T] trajectory from start to robot's goal
 	print("Simulating the robot's optimal trajectory [Warning: ignoring human!]...")
@@ -375,35 +447,91 @@ if __name__ == '__main__':
 
 	# Simulate human: returns optimal [(s,a)_0, ..., (s,a)_T] trajectory from start to true human goal
 	print("Simulating the human's optimal trajectory...")
+	beta = 1
 	state_traj_h = simulate(mdp, start_state_h, true_goal_state_h, random_traj=True,
-							beta=0.5, path_length=H)  # beta=0.1 is the human's rationality. Smaller is better
+							beta=beta, path_length=H)  # beta=0.1 is the human's rationality. Smaller = more rational
 
+	state_traj_h2 = simulate(mdp, start_state_h, true_goal_state_h, random_traj=True,
+							beta=2, path_length=H)
 	# Predict the human
 	fwd_tsteps = len(state_traj_h)
-	betas = [0.1, 1, 10]  # assume the human is rational when predicting them. beta here is 1/beta in the paper.
+	betas = [0.5, 2, 10]  # assume the human is rational when predicting them. beta here is 1/beta in the paper.
 
 	print("Predicting human...")
 	# H = len(state_traj_h)
 	pred_state_traj_h = predict_human(mdp, state_traj_h, goal_state_h, H, betas)
+	# pred_state_traj_h2 = predict_human(mdp, state_traj_h2, goal_state_h, H, betas)
 	radius = 3
-	penalty = 20
-	mdp_adapt = GridWorldExpandedAdaptive(sim_height, sim_width, occupancy_probability_human=pred_state_traj_h, H=H,
-										  radius=radius, penalty=penalty)
-	mdp_adapt.q_values(goal_state_r, goal_stuck=True)
+	kappa = 5
+	lam = 0.05
+	human_traj = np.array(state_traj_h)[:, 0]
+	gamma = 1
+	mdp_adapt = GridWorldExpandedAdaptive(sim_height, sim_width, list_occupancy_probability_human=pred_state_traj_h,
+										  human_traj=human_traj, H=H, kappa=kappa)
 
-	state_traj_r = adaptive_simulation(mdp_adapt, start_state_r, goal_state_r, path_length=H)
-	lamb = 0.01
+	eta = 0.1
+	alpha = 0.1
+	avoid_over = 3
+
+	print('Running adaptive simulation (SOFT - Decision)...')
+	effective_radius = 3
+	decision_learner = DecisionLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
+									   initial_lam=effective_radius, beta=1., penalty_type='soft', avoid_over=avoid_over,
+									   eta=eta, alpha=alpha)
+	state_traj_r_decision = decision_learner.simulate_trajectory()
+
+	print('Adaptive with no collision avoidance...')
+	ignore_learner = BaseLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
+								 initial_lam=lam, beta=1., penalty_type='ignore', avoid_over=avoid_over)
+	state_traj_r_ignore_2 = ignore_learner.simulate_trajectory()
+
+
+	# mdp_adapt.q_values(goal_state_r, goal_stuck=True)
+	print('Running adaptive simulation ACI...')
+
+
+	aci_learner = ACILearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
+							 initial_lam=lam, beta=1., penalty_type='hard', eta=eta, alpha=alpha, avoid_over=avoid_over)
+	state_traj_r_aci = aci_learner.simulate_trajectory()
+
+
+	# print('Running adaptive simulation (SOFT 2)...')
+	# soft_learner = BaseLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
+	# 						   initial_lam=1/effective_radius, beta=1., penalty_type='soft')
+	# state_traj_r_soft = soft_learner.simulate_trajectory()
+
+	print('Running adaptive simulation (HARD)...')
+	hard_learner = BaseLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
+							   initial_lam=lam, beta=1., penalty_type='hard', avoid_over=avoid_over)
+	state_traj_r_hard = hard_learner.simulate_trajectory()
+
+
+
+
+
+	# print('Running adaptive simulation (HARD)...')
+	# state_traj_r_hard = adaptive_simulation(mdp_adapt, start_state_r, goal_state_r, path_length=H, lam=lam,
+	# 										penalty_type='hard')
+	#
+	# print('Running adaptive simulation (SOFT)...')
+	# state_traj_r_soft = adaptive_simulation(mdp_adapt, start_state_r, goal_state_r, path_length=H, lam=1/effective_radius,
+	# 										penalty_type='soft')
+
+
+
 	print("Plotting...")
 	mpl.use('Qt5Agg')
-	fig = plot_state_trajs(mdp, [state_traj_h, state_traj_r_ignore, state_traj_r], pred_state_traj_h, goal_state_h, lamb=lamb,
-					 radius=radius, humax_idx=0,
-					 labels=['human', 'robot-ignore', 'robot-adapt'])
+	fig = plot_state_trajs(mdp, [state_traj_h, state_traj_r_ignore, state_traj_r_aci, state_traj_r_decision,
+								 state_traj_r_hard], pred_state_traj_h, goal_state_h, lam=lam, avoid_over=avoid_over,
+					 radius=None, humax_idx=0,
+					 labels=['human', 'robot-ignore', 'robot-aci', 'robot-soft', 'robot_hard'])
 	fig.savefig('path1')
 	plt.show()
+
 	# TODO:
-	#  1. Add online update of the human's occupancy predictions
-	#    1.a Using position coverage
-	#    1.b Using decision coverage
+	#  1. Optimize speed of the learner
+	#  2. Soft Learner
+	#  3. Add our learner: optimize towards lambda_double_star. (need to compute it first)
 
 
 	# # Setup the GridWorld
