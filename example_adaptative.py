@@ -460,10 +460,9 @@ if __name__ == '__main__':
 	print("Predicting human...")
 	# H = len(state_traj_h)
 	pred_state_traj_h = predict_human(mdp, state_traj_h, goal_state_h, H, betas)
-	# pred_state_traj_h2 = predict_human(mdp, state_traj_h2, goal_state_h, H, betas)
 	radius = 3
 	kappa = 5
-	lam = 0.05
+	lam = 0.1
 	human_traj = np.array(state_traj_h)[:, 0]
 	gamma = 1
 	mdp_adapt = GridWorldExpandedAdaptive(sim_height, sim_width, list_occupancy_probability_human=pred_state_traj_h,
@@ -486,38 +485,15 @@ if __name__ == '__main__':
 	state_traj_r_ignore_2 = ignore_learner.simulate_trajectory()
 
 
-	# mdp_adapt.q_values(goal_state_r, goal_stuck=True)
 	print('Running adaptive simulation ACI...')
-
-
 	aci_learner = ACILearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
 							 initial_lam=lam, beta=1., penalty_type='hard', eta=eta, alpha=alpha, avoid_over=avoid_over)
 	state_traj_r_aci = aci_learner.simulate_trajectory()
-
-
-	# print('Running adaptive simulation (SOFT 2)...')
-	# soft_learner = BaseLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
-	# 						   initial_lam=1/effective_radius, beta=1., penalty_type='soft')
-	# state_traj_r_soft = soft_learner.simulate_trajectory()
 
 	print('Running adaptive simulation (HARD)...')
 	hard_learner = BaseLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
 							   initial_lam=lam, beta=1., penalty_type='hard', avoid_over=avoid_over)
 	state_traj_r_hard = hard_learner.simulate_trajectory()
-
-
-
-
-
-	# print('Running adaptive simulation (HARD)...')
-	# state_traj_r_hard = adaptive_simulation(mdp_adapt, start_state_r, goal_state_r, path_length=H, lam=lam,
-	# 										penalty_type='hard')
-	#
-	# print('Running adaptive simulation (SOFT)...')
-	# state_traj_r_soft = adaptive_simulation(mdp_adapt, start_state_r, goal_state_r, path_length=H, lam=1/effective_radius,
-	# 										penalty_type='soft')
-
-
 
 	print("Plotting...")
 	mpl.use('Qt5Agg')
@@ -525,9 +501,8 @@ if __name__ == '__main__':
 								 state_traj_r_hard], pred_state_traj_h, goal_state_h, lam=lam, avoid_over=avoid_over,
 					 radius=None, humax_idx=0,
 					 labels=['human', 'robot-ignore', 'robot-aci', 'robot-soft', 'robot_hard'])
-	fig.savefig('path1')
+	# fig.savefig('path1')
 	plt.show()
-
 	# TODO:
 	#  1. Optimize speed of the learner
 	#  2. Soft Learner
