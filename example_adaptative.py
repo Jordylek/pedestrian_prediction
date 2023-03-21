@@ -471,9 +471,8 @@ if __name__ == '__main__':
 	eta = 0.1
 	alpha = 0.1
 	avoid_over = 3
-
 	print('Running adaptive simulation (SOFT - Decision)...')
-	effective_radius = 3
+	effective_radius = 2
 	decision_learner = DecisionLearner(mdp=mdp_adapt, start_state=start_state_r, goal_state=goal_state_r, H=H,
 									   initial_lam=effective_radius, beta=1., penalty_type='soft', avoid_over=avoid_over,
 									   eta=eta, alpha=alpha)

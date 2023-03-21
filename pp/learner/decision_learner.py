@@ -29,7 +29,7 @@ class DecisionLearner(BaseLearner):
 					loss = 1
 				else:
 					s_prime = self.mdp.transition(s, a)
-					loss = np.exp(-(self.mdp.distances[s_prime, self.mdp.human_traj[h]] / prev_lam) ** 2)
+					loss = np.exp(-self.mdp.distances[s_prime, self.mdp.human_traj[h]] / prev_lam)
 			elif self.penalty_type == 'ignore':
 				loss = 0
 			else:

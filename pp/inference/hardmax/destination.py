@@ -246,8 +246,6 @@ def infer_joint(g, dests, betas, priors=None, traj=[], use_gridless=False,
                     boltzmann[index_d, index_b] = g.action_probabilities(
                             goal_spec=d, beta=b)[s, a]
 
-
-
         # Apply time update to "smooth out" dest and beta distributions
         # (acknowledging that they can change over time).
         P_dest_given_beta_predict = np.dot(dest_trans, P_dest_given_beta)

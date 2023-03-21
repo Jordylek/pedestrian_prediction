@@ -58,6 +58,7 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		self.human_traj = human_traj
 		self.distances = self.distances_between_states()
 		self.reward_cache = {}
+		self.transitions = self.transition_cached  # deterministic transitions: T[s,a] = s'
 
 	def distances_between_states(self):
 		"""
@@ -119,7 +120,7 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 			elif lam >= min(self.rows, self.cols):
 				return self.kappa
 			# the two previous conditions insures that we have a saturating loss.
-			return self.kappa * (human_probabilities * np.exp(-(self.distances[s_prime] / lam) ** 2)).sum()
+			return self.kappa * (human_probabilities * np.exp(-self.distances[s_prime] / lam)).sum()
 		elif penalty_type == 'ignore':
 			return 0
 
@@ -164,12 +165,16 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		Q.fill(-np.inf)
 		Q[-1] = self.rewards[-1]
 		for h in range(self.H-2, -1, -1):
-			for s in range(self.S):
-				for a in range(self.A):
-					s_prime, illegal = self._transition_helper(s, a, alert_illegal=True)
-					if illegal:
-						continue
-					Q[h, s, a] = self.rewards[h, s, a] + self.gamma * np.max(Q[h+1, s_prime, :])
+			V = np.max(Q[h+1], axis=1)
+			# Q[h] = self.rewards[h] + self.gamma * self.transition_matrix @ V
+			Q[h] = self.rewards[h] + self.gamma * V[self.transitions]  # uses the fact that the transition matrix is deterministic. 100x faster than the above line.
+		# for h in range(self.H-2, -1, -1):
+		# 	for s in range(self.S):
+		# 		for a in range(self.A):
+		# 			s_prime, illegal = self._transition_helper(s, a, alert_illegal=True)
+		# 			if illegal:
+		# 				continue
+		# 			Q[h, s, a] = self.rewards[h, s, a] + self.gamma * np.max(Q[h+1, s_prime, :])
 		self.q_cache[key_tuple] = Q
 		return np.copy(Q)
 
@@ -182,12 +187,14 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		self._update_rewards(h, lam=lam, penalty_type=penalty_type, avoid_over=avoid_over)
 		Q[-1] = self.rewards[-1]
 		for h_p in range(self.H - 2, h-1, -1):
-			for s in range(self.S):
-				for a in range(self.A):
-					s_prime, illegal = self._transition_helper(s, a, alert_illegal=True)
-					if illegal:
-						continue
-					Q[h_p, s, a] = self.rewards[h_p, s, a] + self.gamma * np.max(Q[h_p + 1, s_prime, :])
+			V = np.max(Q[h + 1], axis=1)
+			Q[h] = self.rewards[h] + self.gamma * V[self.transitions]
+			# for s in range(self.S):
+			# 	for a in range(self.A):
+			# 		s_prime, illegal = self._transition_helper(s, a, alert_illegal=True)
+			# 		if illegal:
+			# 			continue
+			# 		Q[h_p, s, a] = self.rewards[h_p, s, a] + self.gamma * np.max(Q[h_p + 1, s_prime, :])
 		self.q_cache[new_tuple] = Q
 		return Q
 
@@ -206,6 +213,7 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		for h in range(self.H):
 			alpha_star[h] = self.compute_largest_uncertainty(h)
 		return alpha_star
+
 	def confidence_set(self, h, p):
 		"""
 		Compute the confidence set of size 1-p of the position of the human at time h+1 given the information at time h.
