@@ -94,7 +94,7 @@ def traj_stats(g, start, goal, traj, beta=1, dest_set=None,
     print(dest_set)
 
     print("Raw trajectory:")
-    print([(g.state_to_coor(s), g.Actions(a)) for s, a in traj])
+    print([(g.state_to_coor(s), g.Directions(a)) for s, a in traj])
     display(g, traj, start, goal, overlay=True)
 
     P = infer_destination(g, traj, beta=beta, dest_set=dest_set)

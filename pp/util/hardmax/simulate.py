@@ -33,7 +33,7 @@ def simulate(mdp, initial_state, goal_state, beta=1, path_length=None):
         a = sample_action(mdp, s, goal_state, beta=beta, cached_probs=P)
         assert a is not None
         traj.append([s, a])
-        if a == mdp.Actions.ABSORB:
+        if a == mdp.Directions.ABSORB:
             break
         else:
             s = mdp.transition(s, a)
@@ -64,9 +64,9 @@ def sample_action(mdp, state, goal, beta=1, cached_probs=None,
         P = mdp.action_probabilitilies(goal, beta=beta)
 
     if absorb_only_on_goal:
-            choice = mdp.Actions.ABSORB
+            choice = mdp.Directions.ABSORB
             if state != goal:
-                while choice == mdp.Actions.ABSORB:
+                while choice == mdp.Directions.ABSORB:
                     choice = np.random.choice(range(mdp.A), p=P[state])
     else:
         choice = np.random.choice(range(mdp.A), p=P[state])

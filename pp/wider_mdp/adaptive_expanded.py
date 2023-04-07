@@ -1,9 +1,11 @@
 from __future__ import division
 
 import numpy as np
-from .classic import GridWorldMDP, transition_helper, MDP2D
-import pp.mdp.gridless as gridless
-from pp.mdp.expanded import GridWorldExpanded, Actions, action_map
+from .classic import GridWorldMDP, transition_helper, MDP2D, Directions, ActionConverter
+
+
+def dist(a, b):
+	return np.linalg.norm(a-b)
 
 
 def compute_confidence_set(occupancy, p):
@@ -45,11 +47,10 @@ def compute_largest_uncertainty_level(occupancy, state):
 	return np.max(lam_per_human)
 
 
-class GridWorldExpandedAdaptive(GridWorldExpanded):
-	Actions = Actions
+class GridWorldExpandedAdaptive(GridWorldMDP):
 
 	def __init__(self, rows, cols, list_occupancy_probability_human, human_traj, T, kappa=50, gamma=0.9,
-				 **kwargs):
+				 max_step_size=3, **kwargs):
 		"""
 		:param rows: number of rows of GridWorld
 		:param cols: number of columns of GridWorld
@@ -59,16 +60,18 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		:param T: number of time steps
 		:param kappa: parameter for the reward function
 		:param gamma: discount factor
+		:param max_step_size: maximum number of steps allowed for the agent.
 		:param kwargs:
 		"""
 
 		self.T = T  # number of time steps
 		self.kappa = kappa
 		self.gamma = gamma
+		self.max_step_size = max_step_size
 		# self.penalty_type = penalty_type
 		# assert self.penalty_type in ['hard', 'soft']
 		# self.reward_dict = self._build_reward_dict(closeness=0.5)
-		GridWorldExpanded.__init__(self, rows=rows, cols=cols, **kwargs)
+		super().__init__(rows=rows, cols=cols, max_step_size=max_step_size, **kwargs)
 		self.list_occupancy_probability_human = list_occupancy_probability_human
 		self.H = human_traj.shape[0]  # number of humans
 		self.human_traj = human_traj
@@ -83,8 +86,9 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		"""
 		distances = np.zeros((self.S, self.S))
 		for s in range(self.S):
-			for s_prime in range(self.S):
-				distances[s, s_prime] = gridless.dist(self.state_to_real_coor(s), self.state_to_real_coor(s_prime))
+			for s_prime in range(s, self.S):
+				distances[s, s_prime] = dist(self.state_to_real_coor(s), self.state_to_real_coor(s_prime))
+				distances[s_prime, s] = distances[s, s_prime]
 		return distances
 
 	def _dist_reward(self, s, a, s_prime, goal_state, goal_stuck):
@@ -199,7 +203,6 @@ class GridWorldExpandedAdaptive(GridWorldExpanded):
 		return np.copy(Q)
 
 	def update_q_values(self, goal_state, t, goal_stuck=True, lam=0.05, prev_lam=0.05, penalty_type='hard', avoid_over=5):
-		# TODO: this is a bit hacky, but it works. Make it more efficient. Especially the size of the arrays to save and how to cache them.
 		old_tuple = (goal_state, goal_stuck, prev_lam, penalty_type, avoid_over)
 		new_tuple = (goal_state, goal_stuck, lam, penalty_type, avoid_over)
 		assert old_tuple in self.q_cache
