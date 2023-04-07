@@ -188,6 +188,7 @@ class GridWorldMDP(MDP2D):
                 action costs default_reward in states other than the goal.
             obstacles_list [list]: (optional) A list of obstacles. Each obstacle is a tuple of tuples ((x1, y1), (x2, y2)) where
             (x1, y1) is the top left corner and (x2, y2) is the bottom right corner of the obstacle.
+            step_cost [float]: (optional) The cost of taking a step.
         """
         if goal_state is not None:
             assert isinstance(goal_state, int)
@@ -197,18 +198,69 @@ class GridWorldMDP(MDP2D):
         self.action_converter = ActionConverter(max_step_size=self.max_step_size)
         self.step_cost = step_cost
         self.obstacles_list = [] if obstacles_list is None else obstacles_list
+        self._valid_states = None
+        self._valid_transitions = None
         A = len(self.action_converter)
         MDP2D.__init__(self, rows=rows, cols=cols, A=A,
                        transition_helper=self._transition_helper, **kwargs)
+
 
         if self.allow_wait:
             self.rewards[:, Directions.ABSORB].fill(self.default_reward)
         else:
             self.rewards[:, Directions.ABSORB].fill(-np.inf)
 
+    def _compute_valid_states(self):
+        if self.obstacles_list is None:
+            return range(self.S)
+
+        valid_states = np.full(self.S, True)
+        for s in range(self.S):
+            x, y = self.state_to_coor(s)
+            for obstacle in self.obstacles_list:
+                (x1, y1), (x2, y2) = obstacle
+                if x1 < x < x2 and y1 < y < y2:
+                    valid_states[s] = False
+                    break
+        self._valid_states = valid_states
+
+    def _compute_valid_transitions(self):
+        valid_transitions = np.full((self.S, self.S), True)
+
+        for s in range(self.S):
+            x, y = self.state_to_coor(s)
+            if not self.valid_states[s]:
+                valid_transitions[s, :] = False
+                valid_transitions[:, s] = False
+            for s_prime in range(s, self.S):
+                x_prime, y_prime = self.state_to_coor(s_prime)
+                for obstacle in self.obstacles_list:
+                    illegal = is_valid(x, y, x_prime, y_prime, obstacle)
+                    if illegal:
+                        valid_transitions[s, s_prime] = False
+                        valid_transitions[s_prime, s] = False
+                        break
+        self._valid_transitions = valid_transitions
+
+    @property
+    def valid_states(self):
+        if self._valid_states is None:
+            self._compute_valid_states()
+            self._compute_valid_transitions()
+        return self._valid_states
+
+    @property
+    def valid_transitions(self):
+        if self._valid_transitions is None:
+            self._compute_valid_states()
+            self._compute_valid_transitions()
+        return self._valid_transitions
     # XXX: optimize so that we don't need to convert between state and coor.
     def _transition_helper(self, s, a, alert_illegal=False):
-
+        if self.valid_states is None:
+            # Compute the valid states and transitions
+            self._valid_states()
+            self._valid_transitions()
         out = transition_helper(self, s, a, alert_illegal=alert_illegal, action_converter=self.action_converter)
         if alert_illegal:
             s_prime, illegal = out
@@ -216,13 +268,17 @@ class GridWorldMDP(MDP2D):
                 return out
         else:
             s_prime = out
-        x, y = self.state_to_coor(s)
-        x_prime, y_prime = self.state_to_coor(s_prime)
-        for obstacle in self.obstacles_list:
-            illegal = is_valid(x, y, x_prime, y_prime, obstacle)
-            if illegal:
-                return s, True
-        return out
+        legal = self.valid_transitions[s, s_prime]
+        if legal:
+            return out
+        return s, True
+        # x, y = self.state_to_coor(s)
+        # x_prime, y_prime = self.state_to_coor(s_prime)
+        # for obstacle in self.obstacles_list:
+        #     illegal = is_valid(x, y, x_prime, y_prime, obstacle)
+        #     if illegal:
+        #         return s, True
+        # return out
 
     def q_values(self, goal_spec, forwards_value_iter=_value_iter,
             goal_stuck=False):
@@ -247,7 +303,7 @@ class GridWorldMDP(MDP2D):
 
         Q = np.empty([self.S, self.A])
         Q.fill(-np.inf)
-        for s in range(self.S):
+        for s in self.valid_states: # range(self.S):
             if s == goal_spec and goal_stuck:
                 Q[s, Directions.ABSORB] = 0
                 # All other actions will be -np.inf by default.
@@ -257,7 +313,7 @@ class GridWorldMDP(MDP2D):
                 if s == goal_spec and a == Directions.ABSORB:
                     Q[s, a] = 0
                 else:
-                    Q[s, a] = self.rewards[s, a] + V[self.transition(s, a)] - self.action_cost(a)
+                    Q[s, a] = self.rewards[s, a] - self.action_cost(a) + V[self.transition(s, a)]
         assert Q.shape == (self.S, self.A)
 
         self.q_cache[(goal_spec, goal_stuck)] = Q
@@ -273,13 +329,13 @@ def is_valid(x, y, x_prime, y_prime, obstacle):
     y_min, y_max = min(y1, y2), max(y1, y2)
 
     # Trivial cases: they both on the same side of the obstacle
-    if x <= x_min and x_prime <= x_min:
+    if x < x_min and x_prime < x_min:
         return True
-    if x >= x_max and x_prime >= x_max:
+    if x > x_max and x_prime > x_max:
         return True
-    if y <= y_min and y_prime <= y_min:
+    if y < y_min and y_prime < y_min:
         return True
-    if y >= y_max and y_prime >= y_max:
+    if y > y_max and y_prime > y_max:
         return True
 
     # Less trivial, use the line to split the space in two, and make sure that all four corners are on the same side

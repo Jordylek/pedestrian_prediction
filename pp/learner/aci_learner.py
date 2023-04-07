@@ -21,7 +21,7 @@ class ACILearner(BaseLearner):
 			conf_set_per_human = self.mdp.confidence_set(t, self.lam[t-1])
 			self.confidence_sets.append(np.sort(np.unique(np.concatenate(conf_set_per_human))))
 			H = self.mdp.H
-			error = 1 * any(self.mdp.human_traj[h, t] in conf_set_per_human[h] for h in range(H))
+			error = 1 * any(self.mdp.human_traj[h, t] not in conf_set_per_human[h] for h in range(H))
 			self.lam[t] = self.lam[t-1] + self.eta * (self.alpha - error)
 
 

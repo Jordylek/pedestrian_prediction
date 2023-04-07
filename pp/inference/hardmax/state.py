@@ -76,7 +76,7 @@ def infer_joint(g, dests, betas, T, use_gridless=False, traj=[],
         assert isinstance(g, GridWorldExpanded)
     if len(traj) > 0:
         if not use_gridless:
-            init_state = g.transition(*traj[-1])
+            init_state = traj[-1][0]  # g.transition(*traj[-1]). STARTING at the current state instead of next state.
         else:
             x = int(round(traj[-1][0]))
             y = int(round(traj[-1][1]))
@@ -108,6 +108,31 @@ def infer_joint(g, dests, betas, T, use_gridless=False, traj=[],
         return occ_res, occ_all, P_joint_DB
     else:
         return occ_res
+
+# def initialize_joint_infer(g, dests, betas, T, init_state, priors=None, epsilon_dest=0.02, epsilon_beta=0.02):
+#     assert dests is not None
+#     assert betas is not None
+#
+#     n_D = len(dests)
+#     n_B = len(betas)
+#     if priors is None:
+#         priors = np.ones([n_D, n_B])
+#     else:
+#         priors = np.array(priors)
+#
+#     assert priors.shape == (n_D, n_B)
+#     assert np.sum(priors) != 0
+#     assert np.all(priors >= 0)
+#     P_joint_DB_all = np.empty([T+1, n_D, n_B])
+#     P_joint_DB_all[0] = priors
+#
+#     NotImplementedError("This function is not yet implemented.")
+#
+#
+# def update_joint(g, dests, betas, new_action, new_state, priors, occupancy_all,
+#                  epsilon_dest=0.02, epsilon_beta=0.02):
+#
+#     NotImplementedError("This function is not yet implemented.")
 
 def infer_bayes(g, dest, T, betas, traj=[], init_state=None, priors=None,
         k=None,

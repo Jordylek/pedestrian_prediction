@@ -12,7 +12,7 @@ from pp.learner.aci_learner import ACILearner
 from pp.learner.decision_learner import DecisionLearner
 
 def plot_state_trajs(mdp, robot_trajs, human_trajs, robot_goals, human_predicted_states=None, lam=0.01, colors=None, human_color='C0',
-					 plot_intervals=1, labels=None, avoid_over=None, obstacles=None):
+					 plot_intervals=1, labels=None, avoid_over=None, obstacles=None, sets_to_avoid=None):
 
 	obstacles = obstacles or []
 	# preprocessing of data
@@ -112,8 +112,23 @@ def plot_state_trajs(mdp, robot_trajs, human_trajs, robot_goals, human_predicted
 				ax.scatter(coor_traj[tidx1, 0], coor_traj[tidx1, 1], s=last_pos_size, marker='*', c=color, alpha=goal_alpha)
 				ax.scatter(coor_traj[0, 0], coor_traj[0, 1], s=goal_size, marker='o', c=color, alpha=goal_alpha)  # plot start
 				ax.scatter(coor_traj[-1, 0], coor_traj[-1, 1], s=goal_size, marker='x', c=color, alpha=goal_alpha)  # plot goal
+
+			# Plot obstacles
 			for rect in rectangles:
 				ax.add_patch(rect)
+
+			# Plot sets to avoid
+			if sets_to_avoid is not None:
+				if tidx >= len(sets_to_avoid):
+					continue
+				sets_tidx = sets_to_avoid[tidx]
+				label = 'ACI prediction'
+				for state in sets_tidx:
+					coor = mdp.state_to_coor(state)
+					rect = Rectangle((coor[0] - 0.5, coor[1] - 0.5), 1, 1, color='r', alpha=0.3, label=label)
+					ax.add_patch(rect)
+					label = None
+
 			ax.set_title('T={}'.format(tidx))
 			ax.set_xlim([-1, mdp.rows])
 			ax.set_ylim([-1, mdp.cols])
@@ -265,8 +280,8 @@ def predict_human(mdp, human_trajectory_list, dest_list, T, betas):
 
 if __name__ == '__main__':
 	np.random.seed(42)
-	sim_height = 10  # in grid cells (not meters); treated as "rows" and corrsponds with the "x" dimension
-	sim_width = 10 # in grid cells (not meters); treated as "columns" and corrsponds with the "y" dimension
+	sim_height = 15  # in grid cells (not meters); treated as "rows" and corrsponds with the "x" dimension
+	sim_width = 15 # in grid cells (not meters); treated as "columns" and corrsponds with the "y" dimension
 	human_step_size = 3
 	# MDP
 	mdp = GridWorldMDP(sim_height, sim_width, max_step_size=human_step_size)
@@ -277,8 +292,8 @@ if __name__ == '__main__':
 	goal_state_r = mdp.coor_to_state(goal_coor_r[0], goal_coor_r[1])
 
 	# Setup the start and goal location for the human (in grid cells)
-	T = 15
-	H = 10  # number of humans
+	T = 25
+	H = 20  # number of humans
 	random_human = True
 	print(f"Simulating {H} humans  trajectory...")
 	if random_human:
@@ -315,7 +330,7 @@ if __name__ == '__main__':
 										  human_traj=human_trajs, T=T, kappa=kappa, gamma=gamma,
 										  max_step_size=robot_step_size)
 
-	eta = 0.1
+	eta = 0.01
 	alpha = 0.1
 	avoid_over = 3
 
@@ -353,7 +368,8 @@ if __name__ == '__main__':
 	# 				 plot_intervals=1, labels=None, avoid_over=None):
 	fig = plot_state_trajs(mdp=mdp, robot_trajs=robot_trajs, robot_goals=robot_goals,
 						   human_trajs=human_trajectory_list, human_predicted_states=list_occupancy_probability_human,  lam=lam,
-						   avoid_over=1, labels=labels)
+						   avoid_over=1, labels=labels, sets_to_avoid=aci_learner.confidence_sets)
+	# aci_learner.confidence_sets is a list of size T, where the `t`th entry is a list of states that the ACI learner tried to avoid when moving from t-1 to t.
 	# fig.savefig('path1')
 	plt.show()
 
