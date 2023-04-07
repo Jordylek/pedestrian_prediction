@@ -279,10 +279,10 @@ def predict_human(mdp, human_trajectory_list, dest_list, T, betas):
 
 
 if __name__ == '__main__':
-	np.random.seed(42)
-	sim_height = 15  # in grid cells (not meters); treated as "rows" and corrsponds with the "x" dimension
-	sim_width = 15 # in grid cells (not meters); treated as "columns" and corrsponds with the "y" dimension
-	human_step_size = 3
+	np.random.seed(15)
+	sim_height = 10  # in grid cells (not meters); treated as "rows" and corrsponds with the "x" dimension
+	sim_width = 10 # in grid cells (not meters); treated as "columns" and corrsponds with the "y" dimension
+	human_step_size = 5
 	# MDP
 	mdp = GridWorldMDP(sim_height, sim_width, max_step_size=human_step_size)
 	# Setup the start and goal location for the robot (in grid cells)
@@ -292,8 +292,8 @@ if __name__ == '__main__':
 	goal_state_r = mdp.coor_to_state(goal_coor_r[0], goal_coor_r[1])
 
 	# Setup the start and goal location for the human (in grid cells)
-	T = 25
-	H = 20  # number of humans
+	T = 15
+	H = 10  # number of humans
 	random_human = True
 	print(f"Simulating {H} humans  trajectory...")
 	if random_human:
@@ -307,6 +307,7 @@ if __name__ == '__main__':
 		start_states_h = [mdp.coor_to_state(coor[0], coor[1]) for coor in start_coors_h]
 		goal_states_h = [mdp.coor_to_state(coor[0], coor[1]) for coor in goal_coors_h]
 		betas_h = [0.1, 0.8, 0.1]
+
 	humans_start_states, humans_goal_states, true_betas, human_trajectory_list = \
 		simulate_multiple_humans(mdp, H=H, T=T, start_states=start_states_h, goal_states=goal_states_h, betas=betas_h)
 

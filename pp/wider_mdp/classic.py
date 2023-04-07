@@ -303,7 +303,9 @@ class GridWorldMDP(MDP2D):
 
         Q = np.empty([self.S, self.A])
         Q.fill(-np.inf)
-        for s in self.valid_states: # range(self.S):
+        for s in range(self.S):
+            if not self.valid_states[s]:
+                continue
             if s == goal_spec and goal_stuck:
                 Q[s, Directions.ABSORB] = 0
                 # All other actions will be -np.inf by default.
